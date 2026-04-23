@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearMind Journal 🧠</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{min-height:100vh;background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);font-family:'Segoe UI',sans-serif;color:#fff;display:flex;flex-direction:column;align-items:center;padding:24px 16px;}
+canvas{position:fixed;top:0;left:0;z-index:0;pointer-events:none;}
+.app{position:relative;z-index:10;width:100%;max-width:640px;display:flex;flex-direction:column;gap:20px;}
+h1{text-align:center;font-size:1.8rem;background:linear-gradient(90deg,#00ffd5,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.subtitle{text-align:center;opacity:0.6;font-size:0.9rem;margin-top:-12px;}
+.write-card{background:rgba(255,255,255,0.08);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.15);border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:14px;}
+.emotion-row{display:flex;gap:8px;flex-wrap:wrap;}
+.emotion-tag{padding:6px 14px;border-radius:20px;cursor:pointer;font-size:0.8rem;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);transition:all 0.3s;}
+.emotion-tag:hover,.emotion-tag.selected{transform:scale(1.05);}
+.emotion-tag.e0.selected{background:rgba(110,181,255,0.25);border-color:#6eb5ff;color:#6eb5ff;}
+.emotion-tag.e1.selected{background:rgba(255,215,0,0.2);border-color:#ffd700;color:#ffd700;}
+.emotion-tag.e2.selected{background:rgba(0,255,213,0.2);border-color:#00ffd5;color:#00ffd5;}
+.emotion-tag.e3.selected{background:rgba(167,139,250,0.2);border-color:#a78bfa;color:#a78bfa;}
+.emotion-tag.e4.selected{background:rgba(251,191,36,0.2);border-color:#fbbf24;color:#fbbf24;}
+textarea{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);border-radius:16px;color:#fff;font-size:1rem;padding:16px;resize:none;height:130px;outline:none;font-family:inherit;transition:border 0.3s;line-height:1.6;}
+textarea:focus{border-color:#00ffd5;}
+textarea::placeholder{opacity:0.4;}
+.write-footer{display:flex;align-items:center;justify-content:space-between;}
+.char-count{font-size:0.75rem;opacity:0.4;}
+.release-btn{background:linear-gradient(135deg,#00ffd5,#0ea5e9);border:none;color:#0d1b2a;padding:12px 28px;border-radius:20px;font-size:1rem;font-weight:700;cursor:pointer;transition:all 0.3s;}
+.release-btn:hover{transform:scale(1.04);box-shadow:0 8px 30px rgba(0,255,213,0.4);}
+/* Timeline */
+.timeline-header{display:flex;justify-content:space-between;align-items:center;}
+.timeline-header h2{font-size:1.1rem;opacity:0.9;}
+.clear-all{background:transparent;border:1px solid rgba(255,100,100,0.3);color:rgba(255,100,100,0.7);padding:6px 14px;border-radius:14px;cursor:pointer;font-size:0.75rem;transition:all 0.3s;}
+.clear-all:hover{border-color:#ff6464;color:#ff6464;}
+.timeline{display:flex;flex-direction:column;gap:12px;}
+.entry{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:18px;position:relative;transition:all 0.3s;animation:slideIn 0.4s ease;}
+.entry:hover{border-color:rgba(255,255,255,0.25);}
+@keyframes slideIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+.entry-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.entry-tag{padding:3px 10px;border-radius:10px;font-size:0.72rem;font-weight:600;}
+.entry-date{font-size:0.72rem;opacity:0.45;}
+.entry-text{font-size:0.9rem;line-height:1.6;opacity:0.85;white-space:pre-wrap;}
+.entry-delete{background:transparent;border:none;color:rgba(255,100,100,0.5);cursor:pointer;font-size:1rem;position:absolute;top:12px;right:12px;transition:all 0.2s;}
+.entry-delete:hover{color:#ff6464;transform:scale(1.2);}
+.empty-state{text-align:center;padding:32px;opacity:0.4;font-size:0.9rem;}
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:rgba(0,255,213,0.15);border:1px solid #00ffd5;color:#00ffd5;padding:12px 24px;border-radius:20px;transition:all 0.4s;opacity:0;z-index:999;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="app">
+  <h1>🧠 ClearMind</h1>
+  <p class="subtitle">Write anything. No judgement. Just breathe.</p>
+  <div class="write-card">
+    <div class="emotion-row" id="emotions">
+      <button class="emotion-tag e0" onclick="selectEmotion(0,this)">😔 Sad</button>
+      <button class="emotion-tag e1" onclick="selectEmotion(1,this)">😊 Happy</button>
+      <button class="emotion-tag e2" onclick="selectEmotion(2,this)">😤 Frustrated</button>
+      <button class="emotion-tag e3" onclick="selectEmotion(3,this)">😴 Tired</button>
+      <button class="emotion-tag e4" onclick="selectEmotion(4,this)">😰 Anxious</button>
+    </div>
+    <textarea id="thoughtInput" placeholder="I'm feeling... because... Right now I need...&#10;Just write anything — no rules, no corrections." maxlength="1000" oninput="updateCount()"></textarea>
+    <div class="write-footer">
+      <span class="char-count"><span id="charCount">0</span>/1000</span>
+      <button class="release-btn" onclick="releaseThought()">Release Thoughts 🌿</button>
+    </div>
+  </div>
+  <div class="timeline-header">
+    <h2>📜 Your Journal</h2>
+    <button class="clear-all" onclick="clearAll()">Clear All</button>
+  </div>
+  <div class="timeline" id="timeline"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+// BG canvas
+const canvas=document.getElementById('bg'),ctx=canvas.getContext('2d');
+let W,H,pts=[];
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;}
+resize();window.addEventListener('resize',resize);
+class Pt{constructor(){this.reset();}reset(){this.x=Math.random()*W;this.y=Math.random()*H;this.r=Math.random()*1.5+0.5;this.sy=-(Math.random()*0.3+0.05);this.a=Math.random()*0.4+0.05;this.h=Math.random()>0.5?180:270;}update(){this.y+=this.sy;if(this.y<-10){this.y=H;this.x=Math.random()*W;}}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`hsla(${this.h},100%,70%,${this.a})`;ctx.fill();}}
+for(let i=0;i<60;i++)pts.push(new Pt());
+(function anim(){ctx.clearRect(0,0,W,H);pts.forEach(p=>{p.update();p.draw();});requestAnimationFrame(anim);})();
+
+const emotions=[
+  {label:'😔 Sad',bg:'rgba(110,181,255,0.2)',border:'#6eb5ff',color:'#6eb5ff'},
+  {label:'😊 Happy',bg:'rgba(255,215,0,0.15)',border:'#ffd700',color:'#ffd700'},
+  {label:'😤 Frustrated',bg:'rgba(0,255,213,0.15)',border:'#00ffd5',color:'#00ffd5'},
+  {label:'😴 Tired',bg:'rgba(167,139,250,0.2)',border:'#a78bfa',color:'#a78bfa'},
+  {label:'😰 Anxious',bg:'rgba(251,191,36,0.15)',border:'#fbbf24',color:'#fbbf24'},
+];
+let selectedEmotion=null;
+
+function selectEmotion(i,btn){
+  document.querySelectorAll('.emotion-tag').forEach(t=>t.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedEmotion=i;
+}
+function updateCount(){document.getElementById('charCount').textContent=document.getElementById('thoughtInput').value.length;}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function releaseThought(){
+  const input=document.getElementById('thoughtInput');
+  const text=input.value.trim();
+  if(!text){showToast('Just write anything. Even one line 🌱');return;}
+  const thoughts=JSON.parse(localStorage.getItem('cm_thoughts')||'[]');
+  thoughts.unshift({text,emotion:selectedEmotion,date:new Date().toLocaleString()});
+  localStorage.setItem('cm_thoughts',JSON.stringify(thoughts));
+  input.value='';updateCount();
+  selectedEmotion=null;
+  document.querySelectorAll('.emotion-tag').forEach(t=>t.classList.remove('selected'));
+  showToast('Released 🌿 Feel a little lighter?');
+  renderTimeline();
+}
+
+function renderTimeline(){
+  const thoughts=JSON.parse(localStorage.getItem('cm_thoughts')||'[]');
+  const tl=document.getElementById('timeline');
+  if(thoughts.length===0){tl.innerHTML='<div class="empty-state">Your thoughts will live here.<br>Start writing above 🌱</div>';return;}
+  tl.innerHTML='';
+  thoughts.forEach((t,i)=>{
+    const e=t.emotion!=null?emotions[t.emotion]:null;
+    const div=document.createElement('div');
+    div.className='entry';
+    div.innerHTML=`
+      <div class="entry-top">
+        ${e?`<span class="entry-tag" style="background:${e.bg};border:1px solid ${e.border};color:${e.color}">${e.label}</span>`:'<span></span>'}
+        <span class="entry-date">${t.date}</span>
+      </div>
+      <div class="entry-text">${escHtml(t.text)}</div>
+      <button class="entry-delete" onclick="deleteEntry(${i})" title="Delete">✕</button>
+    `;
+    tl.appendChild(div);
+  });
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function deleteEntry(i){
+  const thoughts=JSON.parse(localStorage.getItem('cm_thoughts')||'[]');
+  thoughts.splice(i,1);
+  localStorage.setItem('cm_thoughts',JSON.stringify(thoughts));
+  renderTimeline();
+}
+function clearAll(){if(confirm('Clear all thoughts?')){localStorage.removeItem('cm_thoughts');renderTimeline();}}
+renderTimeline();
+</script>
+</body>
+</html>
